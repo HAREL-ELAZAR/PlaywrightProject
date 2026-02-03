@@ -91,5 +91,6 @@ public class LoginTest extends BaseTest {
         loginPage.login("harel.elazar@scanovate.com", "He1234567");
         page.getByText("Back to B-Trust as a user").click();
         homepage.selectTab("Entities");
+        System.out.println("test new harel branch");
     }
 }
