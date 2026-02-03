@@ -1,16 +1,9 @@
-package tests;
+package tests.uiTests;
 
 import base.BaseTest;
-import com.microsoft.playwright.Locator;
-import com.microsoft.playwright.Page;
-import com.microsoft.playwright.options.AriaRole;
-import jdk.jfr.Description;
-import org.testng.SkipException;
 import org.testng.annotations.Test;
 import pages.HomePage;
 import pages.LoginPage;
-
-import java.util.regex.Pattern;
 
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat;
 
