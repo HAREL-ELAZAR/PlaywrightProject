@@ -1,7 +1,7 @@
 <suite name="PlaywrghtSuite">
     <test name="Basic Tests">
         <classes>
-            <class name="tests.uiTests.FirstTest"/>
+            <class name="tests.uiTests.LoginTest"/>
         </classes>
 
     </test>
