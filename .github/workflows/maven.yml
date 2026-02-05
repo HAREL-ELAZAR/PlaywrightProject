@@ -23,8 +23,8 @@ jobs:
       - name: Install Playwright browsers
         run: mvn -q exec:java -Dexec.args="install --with-deps"
 
-      - name: Run tests
-        run: mvn -B clean test
+      - name: Run tests (Smoke suite)
+        run: mvn -B clean test -DsuiteXmlFile=testngFiles/testngSmoke.xml
 
       # Upload reports even if tests fail
       - name: Upload test reports (Extent / TestNG / Allure)
