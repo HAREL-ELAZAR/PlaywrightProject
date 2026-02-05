@@ -24,7 +24,7 @@ jobs:
         run: mvn -q exec:java -Dexec.args="install --with-deps"
 
       - name: Run tests (Smoke suite)
-        run: mvn -B clean test -DsuiteXmlFile=testngFiles/testngSmoke.xml
+        run: mvn -B clean test -DsuiteXmlFile=testngFiles/testngSmoke.xml -DHEADLESS=true
 
       # Upload reports even if tests fail
       - name: Upload test reports (Extent / TestNG / Allure)
