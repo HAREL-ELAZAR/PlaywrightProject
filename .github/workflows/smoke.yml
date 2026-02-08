@@ -7,14 +7,9 @@ on:
     branches: ["main"]
   workflow_dispatch:
 
+# מינימום הרשאות ברמת workflow
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: true
 
 jobs:
   smoke:
@@ -35,18 +30,80 @@ jobs:
         with:
           node-version: "20"
 
+      # ✅ Cache ל-Playwright כדי לקצר ריצות
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
       - name: Install Playwright browsers
         run: mvn -q exec:java -Dexec.args="install --with-deps"
 
       - name: Run Smoke suite (headless)
         run: mvn -B clean test -DsuiteXmlFile=testngFiles/testngSmoke.xml -DHEADLESS=true
 
+      # ✅ Allure metadata (בלי הזחות ב-EOF)
+      - name: Add Allure metadata (executor + env)
+        if: always()
+        run: |
+          mkdir -p target/allure-results
+
+          cat <<EOF > target/allure-results/environment.properties
+          suite=testngSmoke.xml
+          branch=${{ github.head_ref || github.ref_name }}
+          event=${{ github.event_name }}
+          EOF
+
+          cat <<EOF > target/allure-results/executor.json
+          {
+            "name": "GitHub Actions",
+            "type": "github",
+            "buildName": "${{ github.workflow }} #${{ github.run_number }}",
+            "buildUrl": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          }
+          EOF
+
+      - name: Debug Allure results folder
+        if: always()
+        run: |
+          echo "=== Allure results files ==="
+          ls -la target/allure-results || true
+          echo "=== Count ==="
+          find target/allure-results -type f | wc -l || true
+          echo "=== JSON files ==="
+          find target/allure-results -maxdepth 1 -type f -name "*-result.json" -o -name "*-container.json" || true
+
+      # ✅ Build Allure (יציב + placeholder בטוח)
       - name: Build Allure report
         if: always()
         run: |
           npm i -g allure-commandline
-          allure generate target/allure-results -o target/allure-report --clean || true
+          
+          if [ -d "target/allure-results" ] && [ "$(find target/allure-results -type f | wc -l)" -gt 0 ]; then
+            echo "Allure results found – generating report"
+            allure generate target/allure-results -o target/allure-report --clean || true
+          fi
+          
+          # אם לא נוצר report (או יצא ריק) -> placeholder
+          if [ ! -f "target/allure-report/index.html" ]; then
+            echo "No Allure report generated – creating placeholder"
+            mkdir -p target/allure-report
+            cat <<EOF > target/allure-report/index.html
+          <html>
+          <body style="font-family: Arial; padding: 16px;">
+            <h2>No Allure results were generated</h2>
+            <p>Check workflow logs: <b>Debug Allure results folder</b></p>
+            <p>This usually means Allure TestNG listener/dependency is missing or tests didn't produce allure-results.</p>
+          </body>
+          </html>
+          EOF
+          fi
 
+      # ✅ Artifacts לשמירה (לא קשור ל-Pages)
       - name: Upload test reports (Extent / TestNG / Allure)
         if: always()
         uses: actions/upload-artifact@v4
@@ -60,6 +117,7 @@ jobs:
             target/allure-report/**
           if-no-files-found: warn
 
+      # ✅ זה מה שמכין לפרסום ב-GitHub Pages
       - name: Upload Allure report to Pages artifact
         if: always()
         uses: actions/upload-pages-artifact@v3
@@ -75,33 +133,42 @@ jobs:
             echo "SLACK_WEBHOOK_URL is not set. Skipping Slack notification."
             exit 0
           fi
-
+          
           STATUS="${{ job.status }}"
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           BRANCH="${{ github.head_ref || github.ref_name }}"
-
-          # PR_URL exists only on pull_request event
+          
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             PR_URL="${{ github.event.pull_request.html_url }}"
             TEXT="*PR Smoke* finished with *${STATUS}*\nRepo: ${{ github.repository }}\nBranch: ${BRANCH}\nPR: ${PR_URL}\nRun: ${RUN_URL}"
           else
             TEXT="*Smoke* finished with *${STATUS}*\nRepo: ${{ github.repository }}\nBranch: ${BRANCH}\nRun: ${RUN_URL}"
           fi
-
-          curl -X POST -H 'Content-type: application/json' \
-            --data "{\"text\":\"${TEXT}\"}" \
-            "$SLACK_WEBHOOK_URL"
+          
+          # JSON safe-ish (מונע בעיות מרכאות)
+          payload=$(printf '%s' "$TEXT" | python3 -c 'import json,sys; print(json.dumps({"text":sys.stdin.read()}))')
+          curl -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK_URL"
 
   deploy:
     needs: smoke
-    # ✅ Deploy to Pages ONLY from main (prevents PR deploy rejection)
-    if: github.ref == 'refs/heads/main'
+
+    # ✅ פריסה רק על main ורק לאירוע שהוא לא PR
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+
     runs-on: ubuntu-latest
     environment:
       name: github-pages
+
+    # ✅ הרשאות Pages רק כאן
     permissions:
       pages: write
       id-token: write
+
+    # ✅ concurrency רק לפריסה (לא יחנוק ריצות smoke של PR)
+    concurrency:
+      group: "pages"
+      cancel-in-progress: true
+
     steps:
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
