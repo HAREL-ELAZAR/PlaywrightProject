@@ -1,0 +1,9 @@
+<suite name="PlaywrghtSuite">
+    <test name="Basic Tests">
+        <classes>
+            <class name="tests.uiTests.CreateUserScreen"/>
+        </classes>
+
+    </test>
+
+</suite>
