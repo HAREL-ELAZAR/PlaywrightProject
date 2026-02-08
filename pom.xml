@@ -136,9 +136,6 @@
                         <suiteXmlFile>${suiteXmlFile}</suiteXmlFile>
                     </suiteXmlFiles>
 
-                    <!-- לא לדרוס argLine קיים -->
-                    <argLine>@{argLine} -javaagent:${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar</argLine>
-
                     <properties>
                         <property>
                             <name>listener</name>
