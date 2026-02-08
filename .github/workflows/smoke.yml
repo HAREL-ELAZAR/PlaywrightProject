@@ -7,10 +7,9 @@ on:
     branches: ["main"]
   workflow_dispatch:
 
+# פחות הרשאות ברמת workflow (Pages רק ב-deploy)
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: "pages"
@@ -41,11 +40,52 @@ jobs:
       - name: Run Smoke suite (headless)
         run: mvn -B clean test -DsuiteXmlFile=testngFiles/testngSmoke.xml -DHEADLESS=true
 
+      # מוסיף metadata ל-Allure כדי להציג מידע על הריצה
+      - name: Add Allure metadata (executor + env)
+        if: always()
+        run: |
+          mkdir -p target/allure-results
+
+          cat > target/allure-results/environment.properties <<EOF
+          suite=testngSmoke.xml
+          branch=${{ github.head_ref || github.ref_name }}
+          event=${{ github.event_name }}
+          EOF
+
+          cat > target/allure-results/executor.json <<EOF
+          {
+            "name": "GitHub Actions",
+            "type": "github",
+            "buildName": "${{ github.workflow }} #${{ github.run_number }}",
+            "buildUrl": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          }
+          EOF
+
+      # חשוב: לראות אם באמת נוצרו results (אם אין -> הדוח יהיה ריק)
+      - name: Debug Allure results folder
+        if: always()
+        run: |
+          echo "=== Allure results files ==="
+          ls -la target/allure-results || true
+          echo "=== Count ==="
+          find target/allure-results -type f | wc -l || true
+
       - name: Build Allure report
         if: always()
         run: |
           npm i -g allure-commandline
-          allure generate target/allure-results -o target/allure-report --clean || true
+          if [ -d "target/allure-results" ] && [ "$(find target/allure-results -type f | wc -l)" -gt 0 ]; then
+            allure generate target/allure-results -o target/allure-report --clean
+          else
+            echo "No Allure results found. Creating placeholder report..."
+            mkdir -p target/allure-report
+            cat > target/allure-report/index.html <<EOF
+            <html><body>
+            <h2>No Allure results were generated</h2>
+            <p>Check workflow logs: 'Debug Allure results folder'</p>
+            </body></html>
+            EOF
+          fi
 
       - name: Upload test reports (Extent / TestNG / Allure)
         if: always()
@@ -80,7 +120,6 @@ jobs:
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           BRANCH="${{ github.head_ref || github.ref_name }}"
 
-          # PR_URL exists only on pull_request event
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             PR_URL="${{ github.event.pull_request.html_url }}"
             TEXT="*PR Smoke* finished with *${STATUS}*\nRepo: ${{ github.repository }}\nBranch: ${BRANCH}\nPR: ${PR_URL}\nRun: ${RUN_URL}"
@@ -94,8 +133,8 @@ jobs:
 
   deploy:
     needs: smoke
-    # ✅ Deploy to Pages ONLY from main (prevents PR deploy rejection)
-    if: github.ref == 'refs/heads/main'
+    # ✅ פריסה רק ב-main ורק כשזה לא pull_request
+    if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
