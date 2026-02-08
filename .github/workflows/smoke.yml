@@ -2,9 +2,9 @@ name: PR Smoke (Playwright + Reports)
 
 on:
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch:
 
 permissions:
@@ -47,7 +47,6 @@ jobs:
           npm i -g allure-commandline
           allure generate target/allure-results -o target/allure-report --clean || true
 
-      # (Optional) keep downloading artifacts like before
       - name: Upload test reports (Extent / TestNG / Allure)
         if: always()
         uses: actions/upload-artifact@v4
@@ -61,7 +60,6 @@ jobs:
             target/allure-report/**
           if-no-files-found: warn
 
-      # ✅ THIS is what makes it publishable to Pages
       - name: Upload Allure report to Pages artifact
         if: always()
         uses: actions/upload-pages-artifact@v3
@@ -80,10 +78,15 @@ jobs:
 
           STATUS="${{ job.status }}"
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          PR_URL="${{ github.event.pull_request.html_url }}"
-          BRANCH="${{ github.head_ref }}"
+          BRANCH="${{ github.head_ref || github.ref_name }}"
 
-          TEXT="*PR Smoke* finished with *${STATUS}*\nRepo: ${{ github.repository }}\nBranch: ${BRANCH}\nPR: ${PR_URL}\nRun: ${RUN_URL}"
+          # PR_URL exists only on pull_request event
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            PR_URL="${{ github.event.pull_request.html_url }}"
+            TEXT="*PR Smoke* finished with *${STATUS}*\nRepo: ${{ github.repository }}\nBranch: ${BRANCH}\nPR: ${PR_URL}\nRun: ${RUN_URL}"
+          else
+            TEXT="*Smoke* finished with *${STATUS}*\nRepo: ${{ github.repository }}\nBranch: ${BRANCH}\nRun: ${RUN_URL}"
+          fi
 
           curl -X POST -H 'Content-type: application/json' \
             --data "{\"text\":\"${TEXT}\"}" \
@@ -91,7 +94,8 @@ jobs:
 
   deploy:
     needs: smoke
-    if: always()
+    # ✅ Deploy to Pages ONLY from main (prevents PR deploy rejection)
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
