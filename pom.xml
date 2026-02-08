@@ -9,46 +9,56 @@
     <version>1.0-SNAPSHOT</version>
 
     <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
+        <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- TestNG suite -->
         <suiteXmlFile>testng.xml</suiteXmlFile>
+
+        <!-- Versions -->
+        <playwright.version>1.57.0</playwright.version>
+        <testng.version>7.11.0</testng.version>
+        <restassured.version>5.5.0</restassured.version>
+        <gson.version>2.11.0</gson.version>
+        <extentreports.version>5.1.2</extentreports.version>
+        <allure.version>2.29.0</allure.version>
+        <aspectj.version>1.9.22</aspectj.version>
+
+        <!-- Allure report plugin version -->
+        <allure.maven.plugin.version>2.12.0</allure.maven.plugin.version>
     </properties>
 
     <dependencies>
-        <!-- Source: https://mvnrepository.com/artifact/com.microsoft.playwright/playwright -->
+        <!-- Playwright -->
         <dependency>
             <groupId>com.microsoft.playwright</groupId>
             <artifactId>playwright</artifactId>
-            <version>1.57.0</version>
-            <scope>compile</scope>
+            <version>${playwright.version}</version>
         </dependency>
 
-        <!-- Source: https://mvnrepository.com/artifact/org.testng/testng -->
+        <!-- TestNG -->
         <dependency>
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>
-            <version>7.11.0</version>
+            <version>${testng.version}</version>
             <scope>test</scope>
         </dependency>
 
-        <!-- Source: https://mvnrepository.com/artifact/com.aventstack/extentreports -->
+        <!-- ExtentReports (אם זה רק לדוחות בדיקות - עדיף test) -->
         <dependency>
             <groupId>com.aventstack</groupId>
             <artifactId>extentreports</artifactId>
-            <version>5.1.2</version>
-            <scope>compile</scope>
+            <version>${extentreports.version}</version>
+            <scope>test</scope>
         </dependency>
 
-        <!-- REST Assured for API Testing -->
-        <!-- Source: https://mvnrepository.com/artifact/io.rest-assured/rest-assured -->
+        <!-- REST Assured -->
         <dependency>
             <groupId>io.rest-assured</groupId>
             <artifactId>rest-assured</artifactId>
-            <version>5.5.0</version>
+            <version>${restassured.version}</version>
             <scope>test</scope>
             <exclusions>
-                <!-- Exclude vulnerable commons-codec -->
                 <exclusion>
                     <groupId>commons-codec</groupId>
                     <artifactId>commons-codec</artifactId>
@@ -56,73 +66,86 @@
             </exclusions>
         </dependency>
 
-        <!-- Add safe version of commons-codec explicitly -->
+        <!-- safe commons-codec -->
         <dependency>
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
             <version>1.17.1</version>
         </dependency>
 
-        <!-- JSON Path support for REST Assured -->
-        <!-- Source: https://mvnrepository.com/artifact/io.rest-assured/json-path -->
         <dependency>
             <groupId>io.rest-assured</groupId>
             <artifactId>json-path</artifactId>
-            <version>5.5.0</version>
+            <version>${restassured.version}</version>
             <scope>test</scope>
         </dependency>
 
-        <!-- XML Path support for REST Assured -->
-        <!-- Source: https://mvnrepository.com/artifact/io.rest-assured/xml-path -->
         <dependency>
             <groupId>io.rest-assured</groupId>
             <artifactId>xml-path</artifactId>
-            <version>5.5.0</version>
+            <version>${restassured.version}</version>
             <scope>test</scope>
         </dependency>
 
-        <!-- JSON Schema Validator for REST Assured -->
-        <!-- Source: https://mvnrepository.com/artifact/io.rest-assured/json-schema-validator -->
         <dependency>
             <groupId>io.rest-assured</groupId>
             <artifactId>json-schema-validator</artifactId>
-            <version>5.5.0</version>
+            <version>${restassured.version}</version>
             <scope>test</scope>
         </dependency>
 
-        <!-- Gson for JSON serialization/deserialization (optional but useful) -->
-        <!-- Source: https://mvnrepository.com/artifact/com.google.code.gson/gson -->
+        <!-- Gson -->
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
-            <version>2.11.0</version>
+            <version>${gson.version}</version>
         </dependency>
 
-        <!-- Allure TestNG Adapter -->
+        <!-- Allure -->
         <dependency>
             <groupId>io.qameta.allure</groupId>
             <artifactId>allure-testng</artifactId>
-            <version>2.25.0</version>
+            <version>${allure.version}</version>
+            <scope>test</scope>
         </dependency>
 
+        <dependency>
+            <groupId>io.qameta.allure</groupId>
+            <artifactId>allure-rest-assured</artifactId>
+            <version>${allure.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
         <plugins>
-            <!-- Maven Surefire Plugin -->
+            <!-- Surefire (TestNG) -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.aspectj</groupId>
+                        <artifactId>aspectjweaver</artifactId>
+                        <version>${aspectj.version}</version>
+                    </dependency>
+                </dependencies>
                 <configuration>
                     <suiteXmlFiles>
                         <suiteXmlFile>${suiteXmlFile}</suiteXmlFile>
                     </suiteXmlFiles>
+
+                    <properties>
+                        <property>
+                            <name>listener</name>
+                            <value>io.qameta.allure.testng.AllureTestNg</value>
+                        </property>
+                    </properties>
                 </configuration>
             </plugin>
 
-
-            <!-- Exec Maven Plugin - ללא auto-install -->
+            <!-- Allure report (mvn allure:report / allure:serve) -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
@@ -132,15 +155,24 @@
                 </configuration>
             </plugin>
 
-            <!-- Maven Compiler Plugin -->
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <configuration>
+                    <mainClass>com.microsoft.playwright.CLI</mainClass>
+                </configuration>
+            </plugin>
+
+            <!-- Compiler -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.11.0</version>
                 <configuration>
-                    <source>17</source>
-                    <target>17</target>
-                    <encoding>UTF-8</encoding>
+                    <release>${maven.compiler.release}</release>
+                    <encoding>${project.build.sourceEncoding}</encoding>
                 </configuration>
             </plugin>
         </plugins>
