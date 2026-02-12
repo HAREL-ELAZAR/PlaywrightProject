@@ -1,3 +1,10 @@
-base.uri=http://company5.qa.internal-services:5008
-client.id=
-client.secret=
+# ================= API =================
+base.uri=http://localhost:5008
+client.id=YOUR_CLIENT_ID
+client.secret=YOUR_CLIENT_SECRET
+
+# ================= UI =================
+ui.base.url=https://your-env-url
+
+# format: email:password,email:password
+ui.users=user1@email.com:password,user2@email.com:password
