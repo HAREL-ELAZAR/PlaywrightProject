@@ -7,13 +7,22 @@ on:
     branches: ["main"]
   workflow_dispatch:
 
-# מינימום הרשאות ברמת workflow
 permissions:
   contents: read
 
 jobs:
   smoke:
     runs-on: ubuntu-latest
+
+    # ✅ ENV לכל הריצה (מחליף config.properties ב-CI)
+
+    env:
+      BASE_URI: ${{ secrets.BASE_URI }}
+      CLIENT_ID: ${{ secrets.CLIENT_ID }}
+      CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+      UI_BASE_URL: ${{ secrets.UI_BASE_URL }}
+      UI_USERS: ${{ secrets.UI_USERS }}
+
 
     steps:
       - uses: actions/checkout@v4
@@ -30,7 +39,6 @@ jobs:
         with:
           node-version: "20"
 
-      # ✅ Cache ל-Playwright כדי לקצר ריצות
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
@@ -43,10 +51,10 @@ jobs:
       - name: Install Playwright browsers
         run: mvn -q exec:java -Dexec.args="install --with-deps"
 
+      # ✅ Headless נכון ל-CI (Ubuntu Runner בלי XServer)
       - name: Run Smoke suite (headless)
-        run: mvn -B clean test -DsuiteXmlFile=testngFiles/testngSmoke.xml -DHEADLESS=true
+        run: mvn -B clean test -DsuiteXmlFile=testngFiles/testngSmoke.xml -Dheadless=true
 
-      # ✅ Allure metadata (בלי הזחות ב-EOF)
       - name: Add Allure metadata (executor + env)
         if: always()
         run: |
@@ -77,7 +85,6 @@ jobs:
           echo "=== JSON files ==="
           find target/allure-results -maxdepth 1 -type f -name "*-result.json" -o -name "*-container.json" || true
 
-      # ✅ Build Allure (יציב + placeholder בטוח)
       - name: Build Allure report
         if: always()
         run: |
@@ -88,7 +95,6 @@ jobs:
             allure generate target/allure-results -o target/allure-report --clean || true
           fi
           
-          # אם לא נוצר report (או יצא ריק) -> placeholder
           if [ ! -f "target/allure-report/index.html" ]; then
             echo "No Allure report generated – creating placeholder"
             mkdir -p target/allure-report
@@ -103,7 +109,6 @@ jobs:
           EOF
           fi
 
-      # ✅ Artifacts לשמירה (לא קשור ל-Pages)
       - name: Upload test reports (Extent / TestNG / Allure)
         if: always()
         uses: actions/upload-artifact@v4
@@ -117,7 +122,6 @@ jobs:
             target/allure-report/**
           if-no-files-found: warn
 
-      # ✅ זה מה שמכין לפרסום ב-GitHub Pages
       - name: Upload Allure report to Pages artifact
         if: always()
         uses: actions/upload-pages-artifact@v3
@@ -145,26 +149,21 @@ jobs:
             TEXT="*Smoke* finished with *${STATUS}*\nRepo: ${{ github.repository }}\nBranch: ${BRANCH}\nRun: ${RUN_URL}"
           fi
           
-          # JSON safe-ish (מונע בעיות מרכאות)
           payload=$(printf '%s' "$TEXT" | python3 -c 'import json,sys; print(json.dumps({"text":sys.stdin.read()}))')
           curl -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK_URL"
 
   deploy:
     needs: smoke
-
-    # ✅ פריסה רק על main ורק לאירוע שהוא לא PR
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
 
     runs-on: ubuntu-latest
     environment:
       name: github-pages
 
-    # ✅ הרשאות Pages רק כאן
     permissions:
       pages: write
       id-token: write
 
-    # ✅ concurrency רק לפריסה (לא יחנוק ריצות smoke של PR)
     concurrency:
       group: "pages"
       cancel-in-progress: true
