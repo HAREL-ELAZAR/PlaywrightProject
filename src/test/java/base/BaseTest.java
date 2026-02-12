@@ -6,12 +6,10 @@ import com.aventstack.extentreports.Status;
 import com.microsoft.playwright.*;
 import org.testng.ITestResult;
 import org.testng.annotations.*;
-import utils.ExtentManager;
-import utils.ScreenshotUtil;
+import utilities.ExtentManager;
+import utilities.ScreenshotUtil;
 
 import java.nio.file.Paths;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 
 public class BaseTest {
 
@@ -37,7 +35,7 @@ public class BaseTest {
         playwright = Playwright.create();
 
         BrowserType.LaunchOptions launchOptions = new BrowserType.LaunchOptions()
-                .setHeadless(true)
+                .setHeadless(false)
                 .setSlowMo(50);
 
         browser = playwright.chromium().launch(launchOptions);
