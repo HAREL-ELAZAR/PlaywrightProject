@@ -1,12 +1,13 @@
-<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd" >
-<suite name="PlaywrghtSuite">
+<suite name="PlaywrightSuite" parallel="tests" thread-count="1">
+
     <listeners>
         <listener class-name="io.qameta.allure.testng.AllureTestNg"/>
     </listeners>
 
-    <test name="Basic Tests">
+    <test name="UI Tests">
         <classes>
             <class name="tests.uiTests.LoginTest"/>
         </classes>
     </test>
+
 </suite>
