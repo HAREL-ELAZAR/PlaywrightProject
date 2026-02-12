@@ -12,6 +12,13 @@ public class HomePage {
         this.page = page;
     }
 
+
+
+
+
+    private final String workflowManagementBtn = "//button[normalize-space()='WORKFLOW MANAGEMENT']";
+
+
     private final String tabSelector = ".Navigation-module__main-menu__18i8n >li .Navigation-module__nav-item__2qZD0 span";
 
     public void selectTab(String searchTabName) {
