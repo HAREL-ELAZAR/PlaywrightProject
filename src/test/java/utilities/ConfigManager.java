@@ -3,54 +3,57 @@ package utilities;
 import java.io.InputStream;
 import java.util.Properties;
 
-public final class ConfigManager {
+public class ConfigManager {
 
     private static final Properties props = new Properties();
+    private static boolean loaded = false;
 
-    static {
-        try (InputStream is = ConfigManager.class.getClassLoader()
-                .getResourceAsStream("config.properties")) {
+    private static void loadIfNeeded() {
+        if (loaded) return;
+        loaded = true;
 
-            // אם הקובץ לא קיים (כי אנחנו ב-CI) זה בסדר
-            if (is != null) {
-                props.load(is);
+        // Try to load from classpath: src/test/resources/config.properties
+        try (InputStream in = ConfigManager.class.getClassLoader().getResourceAsStream("config.properties")) {
+            if (in != null) {
+                props.load(in);
             }
         } catch (Exception e) {
-            throw new RuntimeException("Failed to load config.properties", e);
+            // ignore - file can be missing in CI
         }
     }
 
-    private ConfigManager() {}
+    public static String get(String key) {
+        loadIfNeeded();
 
-    /** מחזיר ערך לפי: ENV -> properties -> error */
-    public static String getRequired(String key) {
-        String value = getOptional(key);
-        if (value == null || value.isBlank()) {
-            throw new IllegalStateException("Missing required config key: " + key
-                    + " (set env var or config.properties)");
-        }
-        return value;
-    }
+        // 1) JVM system property: -Dui.users=...
+        String sys = System.getProperty(key);
+        if (sys != null && !sys.isBlank()) return sys.trim();
 
-    /** מחזיר ערך לפי: ENV -> properties -> null */
-    public static String getOptional(String key) {
+        // 2) ENV mapping: ui.users -> UI_USERS
         String envKey = toEnvKey(key);
+        String env = System.getenv(envKey);
+        if (env != null && !env.isBlank()) return env.trim();
 
-        String envVal = System.getenv(envKey);
-        if (envVal != null && !envVal.isBlank()) {
-            return envVal;
-        }
-
-        String propVal = props.getProperty(key);
-        if (propVal != null && !propVal.isBlank()) {
-            return propVal;
-        }
+        // 3) properties file
+        String val = props.getProperty(key);
+        if (val != null && !val.isBlank()) return val.trim();
 
         return null;
     }
 
-    /** base.uri -> BASE_URI */
+    public static String getRequired(String key) {
+        String val = get(key);
+        if (val == null) {
+            throw new IllegalStateException("Missing required config key: " + key +
+                    " (set env var " + toEnvKey(key) + " or system property -D" + key + " or config.properties)");
+        }
+        return val;
+    }
+
     private static String toEnvKey(String key) {
-        return key.toUpperCase().replace('.', '_');
+        // ui.base.url -> UI_BASE_URL
+        return key.toUpperCase()
+                .replace('.', '_')
+                .replace('-', '_');
     }
 }
